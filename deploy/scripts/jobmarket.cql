@@ -22,12 +22,24 @@ CREATE TABLE project (
   PRIMARY KEY (id)
 );
 
+CREATE TABLE bid_order (
+  id int,
+  user_id int,
+  project set<text>,
+  status text,
+  bidding_time timestamp,
+  bid_amt double,
+  user_displayname text,
+  PRIMARY KEY ((id, user_id))
+);
+
+
 CREATE TABLE purchase_order (
   id int,
   user_id int,
   purchased_projects set<text>,
   status text,
-  purchase_time double,
+  purchase_time timestamp,
   purchase_amt double,
   user_displayname text,
   PRIMARY KEY ((id, user_id))
