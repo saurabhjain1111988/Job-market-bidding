@@ -16,7 +16,7 @@ The time the exercise took (after dev environment is set up)
 
 Exercise Difficulty: Moderate
 
-How did you feel about the exercise itself? 6
+How did you feel about the exercise itself? 7
 
 How do you feel about coding an exercise as a step in the interview process?  8
 
