@@ -56,39 +56,17 @@ public class ProjectServiceImpl implements ProjectService {
 
 	@Override
 	public void addProject(Project project) throws JobMarketException {
-		if (null == project || null == project.getSeller() || null == project.getSeller().getId()
-				|| project.getSeller().getId() == 0) {
-			throw new JobMarketException(JobMarketExceptionReason.BadRequestData,
-					"Project or seller Id can't be empty");
-		}
-		if (project.getBidEndTime().compareTo(new Date()) < 0) {
-			throw new JobMarketException(JobMarketExceptionReason.BadRequestData,
-					"Project Bidding End Date should be greater than today");
-		}
-
+		validateProjectBiddingDates(project);
 		Seller seller = sellerService.getSeller(project.getSeller().getId());
 		if (seller == null) {
 			throw new JobMarketException(JobMarketExceptionReason.NotFound, "Seller doesn't exist");
 		}
-
 		try {
-			if (null == project.getBidStartTime()) {
-				project.setBidStartTime(new Date());
-			}
-			if (null == project.getBidEndTime()) {
-				Calendar calendar = Calendar.getInstance();
-				calendar.setTime(project.getBidStartTime());
-				calendar.add(Calendar.MONTH, 1);
-				project.setBidEndTime(calendar.getTime());
-			}
-
 			project.setStatus((project.getBidStartTime().compareTo(new Date()) < 0) ? ProjectStatus.OPEN_FOR_BIDDING
 					: ProjectStatus.NEW);
 			ResultSet resultSet = projectDao.upsert(project);
 			if (null != resultSet && null != resultSet.one()) {
-
 				project.setId(resultSet.one().getInt(DatabaseTableConstants.COLUMN_PROJECT_ID));
-
 				if (CollectionUtils.isEmpty(seller.getListedProjectIds())) {
 					seller.setListedProjectIds(new HashSet<Integer>());
 				}
@@ -103,10 +81,6 @@ public class ProjectServiceImpl implements ProjectService {
 
 	@Override
 	public void updateProject(Project project) throws JobMarketException {
-		if (null == project || null == project.getId() || project.getId() == 0) {
-			throw new JobMarketException(JobMarketExceptionReason.BadRequestData,
-					"Project or Project Id can't be empty");
-		}
 		try {
 			projectDao.upsert(project);
 		} catch (Exception ex) {
@@ -171,11 +145,11 @@ public class ProjectServiceImpl implements ProjectService {
 
 	@Override
 	public boolean isProjectOpenToBid(Project project) throws JobMarketException {
+		//Update the project if bidding end time is already passed and the project state is New or Open for Bidding
 		if (project.getBidEndTime().compareTo(new Date()) < 0 && project.isNewOrOpenForBidding()) {
 			project.setSoldOutAmount(project.getCurrentBidOrder().getBidAmount());
 			project.setStatus(ProjectStatus.SOLD_OUT);
 			updateProject(project);
-			purchaseService.placePurchaseOrder(getPurchaseOrder(project));
 			if (null != project.getBidOrderIds()) {
 				for (Integer bidOrderId : project.getBidOrderIds()) {
 					if (!bidOrderId.equals(project.getCurrentBidOrder().getId())) {
@@ -185,14 +159,38 @@ public class ProjectServiceImpl implements ProjectService {
 					}
 				}
 			}
+			purchaseService.placePurchaseOrder(getPurchaseOrder(project));
 			return false;
+		} else if(project.isNewOrOpenForBidding()) {
+			return true;
 		}
-		return true;
+		return false;
 	}
 
 	private void updateBidOrdersStatus(Set<Integer> bidOrderIds, BidStatus status) {
 		for (Integer bidOrderId : bidOrderIds) {
 			biddingService.updateBidStatus(bidOrderId, status);
+		}
+	}
+	
+	private void validateProjectBiddingDates(Project project) {
+		if(null != project.getBidEndTime() && null != project.getBidStartTime() && 
+				project.getBidEndTime().compareTo(project.getBidStartTime()) < 0) {
+			throw new JobMarketException(JobMarketExceptionReason.BadRequestData,
+					"Project Bidding End Date should be greater than Bidding Start Date");
+		}
+		if (null != project.getBidEndTime() && project.getBidEndTime().compareTo(new Date()) < 0) {
+			throw new JobMarketException(JobMarketExceptionReason.BadRequestData,
+					"Project Bidding End Date should be greater than today");
+		}
+		if (null == project.getBidStartTime()) {
+			project.setBidStartTime(new Date());
+		}
+		if (null == project.getBidEndTime()) {
+			Calendar calendar = Calendar.getInstance();
+			calendar.setTime(project.getBidStartTime());
+			calendar.add(Calendar.MONTH, 1);
+			project.setBidEndTime(calendar.getTime());
 		}
 	}
 

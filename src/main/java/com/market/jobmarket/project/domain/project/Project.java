@@ -1,7 +1,10 @@
 package com.market.jobmarket.project.domain.project;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
 
 import com.market.jobmarket.project.domain.order.BidOrder;
 
@@ -49,6 +52,9 @@ public class Project extends ProjectTemplate {
 	}
 
 	public Set<Integer> getBidOrderIds() {
+		if (null == this.bidOrderIds) {
+			return new HashSet<Integer>();
+		}
 		return bidOrderIds;
 	}
 
@@ -79,10 +85,14 @@ public class Project extends ProjectTemplate {
 	public void setSoldOutAmount(double soldOutAmount) {
 		this.soldOutAmount = soldOutAmount;
 	}
-	
+
 	public boolean isNewOrOpenForBidding() {
-		return this.status.equals(ProjectStatus.NEW) || 
-				this.status.equals(ProjectStatus.OPEN_FOR_BIDDING);
+		return this.status.equals(ProjectStatus.NEW) || this.status.equals(ProjectStatus.OPEN_FOR_BIDDING);
+	}
+
+	public boolean isInValid() {
+		return (StringUtils.isEmpty(this.getTitle()) || null == this.getSeller() || null == this.getSeller().getId()
+				|| this.getSeller().getId() == 0);
 	}
 
 }

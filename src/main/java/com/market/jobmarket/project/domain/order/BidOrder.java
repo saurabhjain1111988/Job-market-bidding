@@ -78,4 +78,9 @@ public class BidOrder {
 		this.status = status;
 	}
 
+	public boolean isInvalid() {
+		return (this.getBidAmount() <=0 || null == this.getProject() || null == this.getProject().getId() || this.getProject().getId() == 0
+				|| null == this.getUserId() || this.getUserId() == 0);
+	}
+
 }

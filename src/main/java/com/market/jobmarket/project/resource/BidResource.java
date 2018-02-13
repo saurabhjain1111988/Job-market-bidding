@@ -38,9 +38,8 @@ public class BidResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response placeBid(BidOrder bidOrder) {
-		if (null == bidOrder || null == bidOrder.getProject() || null == bidOrder.getProject().getId()
-				|| bidOrder.getProject().getId() == 0 || null == bidOrder.getUserId() || bidOrder.getUserId() == 0) {
-			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request").build();
+		if (null == bidOrder || bidOrder.isInvalid()) {
+			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request, Bid Order is Invalid").build();
 		}
 		biddingService.placeBid(bidOrder);
 		return Response.created(UriBuilder.fromResource(BidResource.class).build(bidOrder)).build();
@@ -53,7 +52,7 @@ public class BidResource {
 	public Response cancelBid(@PathParam("bidOrderId") Integer bidOrderId) {
 		BidOrder bidOrder = biddingService.getBid(bidOrderId);
 		if (null == bidOrder) {
-			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request").build();
+			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request, Bid Order not found").build();
 		}
 		biddingService.cancelBid(bidOrderId);
 		return Response.ok().build();

@@ -34,21 +34,27 @@ public class BiddingServiceImpl implements BiddingService {
 	@Autowired
 	ProjectService projectService;
 
+	/**
+	 * Places the bid using following steps 1) Get the project by using ProjectId
+	 * from BidOrder 2) validate the project exists and open for Bidding, Also the
+	 * Bid is greater than current Bidding 3) Insert the bid order 4) Update the
+	 * Project with Current bid and insert the Bid Order Ids inside Project.
+	 */
 	@Override
 	public void placeBid(BidOrder bidOrder) throws JobMarketException {
-		if (null == bidOrder.getProject() || null == bidOrder.getProject().getId()
-				|| bidOrder.getProject().getId() == 0) {
-			throw new JobMarketException(JobMarketExceptionReason.BadRequestData, "ProjectId can't be empty ");
-		}
+		// Step 1
 		Project project = projectService.getProject(bidOrder.getProject().getId());
+		// Step 2
 		validateProjectToPlaceBid(project, bidOrder);
 
 		ResultSet resultSet = null;
 		try {
+			// Step 3
 			resultSet = biddingDao.upsert(bidOrder);
 			if (null != resultSet && null != resultSet.one()) {
 				Row row = resultSet.one();
 				bidOrder.setId(row.getInt(DatabaseTableConstants.COLUMN_BID_ORDER_ID));
+				// Step 4
 				project.getBidOrderIds().add(bidOrder.getId());
 				project.setCurrentBidOrder(bidOrder);
 				projectService.updateProject(project);
@@ -93,8 +99,8 @@ public class BiddingServiceImpl implements BiddingService {
 			logger.error("Exception occured while getting the bid" + e);
 			throw new JobMarketException(JobMarketExceptionReason.ProcessingError, e);
 		}
-		if (null == resultSet) {
-			throw new JobMarketException(JobMarketExceptionReason.NotFound, " Bidding Record not found ");
+		if (null == resultSet || null == resultSet.one()) {
+			return null;
 		}
 		return getBidFromResultSetRow(resultSet.one());
 	}
@@ -108,14 +114,16 @@ public class BiddingServiceImpl implements BiddingService {
 			logger.error("Exception occured while getting the bid" + e);
 			throw new JobMarketException(JobMarketExceptionReason.ProcessingError, e);
 		}
+		if (null == resultSet || CollectionUtils.isEmpty(resultSet.all())) {
+			return new ArrayList<BidOrder>();
+		}
 
-		return getBidOrdersFromResultSet(resultSet);
+		return getBidOrdersFromResultSetRows(resultSet.all());
 	}
 
 	private void validateProjectToPlaceBid(Project project, BidOrder bitOrder) {
-
 		if (null == project) {
-			throw new JobMarketException(JobMarketExceptionReason.NotFound, "Project not found");
+			throw new JobMarketException(JobMarketExceptionReason.NotFound, "Project associated to Bid not found");
 		}
 		if (!projectService.isProjectOpenToBid(project)) {
 			throw new JobMarketException(JobMarketExceptionReason.BadRequestData, "Project is not open for bidding");
@@ -133,6 +141,7 @@ public class BiddingServiceImpl implements BiddingService {
 		if (project.getCurrentBidOrder().getId().equals(bidOrder.getId())) {
 			BidOrder newMaxBidOrder = null;
 			double maxBidOrderAmt = 0;
+			// Already removed Bid from Project.getBidOrderIds()
 			for (Integer existingBidOrderId : project.getBidOrderIds()) {
 				BidOrder existingBidOrder = getBid(existingBidOrderId);
 				if (maxBidOrderAmt < existingBidOrder.getBidAmount()) {
@@ -144,13 +153,9 @@ public class BiddingServiceImpl implements BiddingService {
 		}
 	}
 
-	private List<BidOrder> getBidOrdersFromResultSet(ResultSet resultSet) {
+	private List<BidOrder> getBidOrdersFromResultSetRows(List<Row> rows) {
 		List<BidOrder> bidOrders = new ArrayList<BidOrder>();
-		if (null == resultSet || CollectionUtils.isEmpty(resultSet.all())) {
-			return bidOrders;
-		}
-
-		for (Row row : resultSet.all()) {
+		for (Row row : rows) {
 			bidOrders.add(getBidFromResultSetRow(row));
 		}
 		return bidOrders;

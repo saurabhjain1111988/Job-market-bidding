@@ -15,6 +15,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
@@ -24,6 +26,8 @@ import com.market.jobmarket.project.service.ProjectService;
 @Controller
 @Path("/project")
 public class ProjectResource {
+	
+	private static Logger logger = LoggerFactory.getLogger(ProjectResource.class);
 
 	@Autowired
 	ProjectService projectService;
@@ -34,8 +38,9 @@ public class ProjectResource {
 		List<Project> projects = new ArrayList<Project>();
 		try {
 			projects = projectService.getAllOpenProjects();
-		} catch (Exception e) {
-			Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+		} catch (Exception ex) {
+			logger.error("Exception Occured while getting all Open Projects ", ex);
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
 					.entity("Exception occured while getting all the open projects ").build();
 		}
 		return Response.ok(projects).build();
@@ -57,9 +62,8 @@ public class ProjectResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response addProject(Project project) {
-		if (null == project || null == project.getSeller() || null == project.getSeller().getId()
-				|| project.getSeller().getId() == 0) {
-			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request").build();
+		if (null == project || project.isInValid()) {
+			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request, Project is Invalid").build();
 		}
 		projectService.addProject(project);
 		return Response.created(UriBuilder.fromResource(ProjectResource.class).build(project)).build();
@@ -70,7 +74,7 @@ public class ProjectResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response updateProject(Project project) {
 		if (null == project || null == project.getId() || project.getId() == 0) {
-			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request").build();
+			return Response.status(Response.Status.BAD_REQUEST).entity("Bad Request, Project or Project Id can't be null").build();
 		}
 		projectService.updateProject(project);
 		return Response.ok(project).build();
